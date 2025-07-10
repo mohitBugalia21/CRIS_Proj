@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Live Signal Graphs</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .header-box {
+            padding: 20px;
+            text-align: center;
+            border: 2px solid #cfd8dc;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .header-box:hover {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            border-color: #1a237e;
+        }
+
+        h2 {
+            font-size: 28px;
+            color: #1a237e;
+            margin: 0;
+        }
+
+        .filter-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 2px solid #cfd8dc;
+            border-radius: 10px;
+            padding: 20px;
+            gap: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-box:hover {
+            border-color: #1a237e;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .info-group {
+            display: flex;
+            flex-direction: column;
+            flex: 0 0 200px;
+        }
+
+        .info-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .info-display {
+            padding: 10px;
+            font-size: 16px;
+            background-color: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+            color: #1565c0;
+        }
+
+        .info-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border: 2px solid #cfd8dc;
+            border-radius: 10px;
+            margin-top: 15px;
+            margin-bottom: 25px;
+            background-color: #fefefe;
+            transition: all 0.3s ease;
+        }
+
+        .info-box:hover {
+            border-color: #1a237e;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        label {
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        select:disabled {
+            background-color: #eee;
+            color: #888;
+        }
+
+        select:hover:enabled {
+            border-color: #1a237e;
+            transform: scale(1.03);
+        }
+
+        .pause-button-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #togglePause {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #1a237e;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #togglePause:hover {
+            background-color: #3949ab;
+        }
+
+        .graph-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .graph-box {
+            border: 1px solid #ddd;
+            padding: 12px;
+            border-radius: 10px;
+            background-color: #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .graph-box:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: #1a237e;
+        }
+
+        .default-message {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+            font-size: 20px;
+            color: #666;
+            background-color: #fff;
+            border-radius: 12px;
+            border: 2px dashed #cfd8dc;
+        }
+
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            padding: 15px;
+            font-size: 14px;
+            color: #555;
+            border-top: 2px solid #cfd8dc;
+            transition: all 0.3s ease;
+        }
+
+        footer:hover {
+            color: #1a237e;
+            border-top-color: #1a237e;
+        }
+
+        /* Spinner styles – only for initial load */
+        #spinner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            background-color: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner-content {
+            font-size: 22px;
+            color: #1a237e;
+            padding: 20px 30px;
+            background-color: #fff;
+            border: 2px solid #1a237e;
+            border-radius: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (max-width: 600px) {
+            .filter-box {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            select {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header-box">
+        <h2>CRIS Signal Monitoring</h2>
+    </div>
+
+    <!-- ✅ ROW 1: Location & Asset Code Dropdowns -->
+    <div class="filter-box">
+        <div class="filter-group">
+            <label for="location">Location:</label>
+            <select id="location">
+                <option value="">Select Location</option>
+                {% for location in locations %}
+                <option value="{{ location }}">{{ location }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="asset">Asset Code:</label>
+            <select id="asset" disabled>
+                <option value="">Select Asset</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- ✅ ROW 2: Info Blocks in their own line -->
+    <div class="info-box">
+        <div class="info-group">
+            <label>Available Locations</label>
+            <div class="info-display" id="locationCount">{{ locations|length }}</div>
+        </div>
+
+        <div class="info-group">
+            <label>Available Asset Codes</label>
+            <div class="info-display" id="assetCount">0</div>
+        </div>
+    </div>
+
+
+    <div class="pause-button-container">
+        <button id="togglePause">⏸️ Pause Graph</button>
+    </div>
+
+    <div class="graph-container" id="graphContainer">
+        <div class="default-message" id="defaultMessage">
+            📊 No Data Found Yet! Ensure To Select Location & Asset Code First...
+        </div>
+        {% for i in range(8) %}
+        <div class="graph-box" id="graphBox{{ i }}" style="display: none;">
+            <div id="graph{{ i }}"></div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <footer>
+        CRIS | Developed By: Mohit Bugalia
+    </footer>
+
+    <!-- Spinner for initial graph load -->
+    <div id="spinner">
+        <div class="spinner-content">⏳ Loading Graphs...</div>
+    </div>
+
+    <script>
+        let currentWindow = 0;
+        let selectedLocation = '';
+        let selectedAsset = '';
+        let isPaused = false;
+        let graphInterval;
+        let initialLoad = true;
+
+        $('#location').change(function () {
+            selectedLocation = $(this).val();
+            $('#asset').prop('disabled', true).html('<option value="">Select Asset</option>');
+            $('#defaultMessage').show();
+            $('.graph-box').hide();
+
+            if (selectedLocation) {
+                $.ajax({
+                    url: '/get_assets',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ location: selectedLocation }),
+                    success: function (data) {
+                        if (data.assets && data.assets.length > 0) {
+                            $('#asset').prop('disabled', false);
+                            $('#assetCount').text(data.assets.length);  // ✅ Count Update
+                            data.assets.forEach(asset => {
+                                $('#asset').append(`<option value="${asset}">${asset}</option>`);
+                            });
+                        } else {
+                            $('#assetCount').text('0');  // ✅ Handle empty case
+                        }
+                    }
+
+                });
+            }
+        });
+
+        $('#asset').change(function () {
+            selectedAsset = $(this).val();
+            if (selectedLocation && selectedAsset) {
+                $('#defaultMessage').hide();
+                $('.graph-box').show();
+                currentWindow = 0;
+                initialLoad = true;
+                startGraphLoop();
+            }
+        });
+
+        $('#togglePause').click(function () {
+            isPaused = !isPaused;
+            $(this).text(isPaused ? '▶️ Resume Graph' : '⏸️ Pause Graph');
+        });
+
+        function startGraphLoop() {
+            fetchAndDrawGraphs();
+            clearInterval(graphInterval);
+            graphInterval = setInterval(() => {
+                if (!isPaused) {
+                    fetchAndDrawGraphs();
+                }
+            }, 1500);
+        }
+
+        function fetchAssets() {
+            const location = document.getElementById("location").value;
+            const assetDropdown = document.getElementById("asset");
+            const assetCount = document.getElementById("assetCount");
+
+            if (!location) {
+                assetDropdown.disabled = true;
+                assetDropdown.innerHTML = '<option value="">Select Asset Code</option>';
+                assetCount.textContent = "0";
+                return;
+            }
+
+            fetch("/get_assets", {
+                method: "POST",
+                contentType: 'application/json',
+                data: JSON.stringify({ location: selectedLocation }),
+            })
+                .then((res) => res.json())
+                .then((data) => {
+                    assetDropdown.disabled = false;
+                    assetDropdown.innerHTML = '<option value="">Select Asset Code</option>';
+                    data.assets.forEach((asset) => {
+                        const option = document.createElement("option");
+                        option.value = asset;
+                        option.textContent = asset;
+                        assetDropdown.appendChild(option);
+                    });
+                    assetCount.textContent = data.assets.length;
+                });
+        }
+
+
+        function fetchAndDrawGraphs() {
+            if (initialLoad) {
+                $('#spinner').css('display', 'flex');
+            }
+
+            $.ajax({
+                url: '/get_signal_data',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    location: selectedLocation,
+                    asset: selectedAsset,
+                    window_index: currentWindow
+                }),
+                success: function (data) {
+                    if (data.status === 'nodata') {
+                        console.warn(data.message);
+                        currentWindow = (currentWindow + 1);
+                        return;
+                    }
+
+                    const x = data.time;
+                    const keys = ['vrg', 'vhg', 'vdg', 'vhhg', 'irg', 'ihg', 'idg', 'ihhg'];
+                    const thresholds = data.thresholds || {};
+                    currentWindow = data.window_index;
+
+                    keys.forEach((key, i) => {
+                        const y = data[key];
+                        const segments = [];
+                        const threshold = thresholds[key];
+                        let currentSegment = {
+                            x: [],
+                            y: [],
+                            line: { color: 'blue' },
+                            mode: 'lines+markers',
+                            marker: { color: [] }
+                        };
+
+                        for (let j = 0; j < x.length; j++) {
+                            const val = y[j];
+                            const time = x[j];
+
+                            if (val == null || val === '') continue;
+
+                            let color = 'blue';
+                            if (threshold !== null && !isNaN(threshold)) {
+                                const deviation = ((val - threshold) / threshold) * 100;
+                                if (Math.abs(deviation) > 3 && Math.abs(deviation) <= 20) {
+                                    color = 'yellow';
+                                } else if (Math.abs(deviation) > 20) {
+                                    color = 'red';
+                                }
+                            }
+
+                            if (
+                                j > 0 &&
+                                (Math.abs(y[j] - y[j - 1]) > 0.1 ||
+                                    new Date(x[j]) - new Date(x[j - 1]) !== 0)
+                            ) {
+                                segments.push(currentSegment);
+                                currentSegment = {
+                                    x: [],
+                                    y: [],
+                                    name: `${key.toUpperCase()} - Segment ${segments.length + 1}`,
+                                    line: { color: color },
+                                    mode: 'lines+markers',
+                                    marker: { color: [] }
+                                };
+                            }
+
+                            currentSegment.x.push(time);
+                            currentSegment.y.push(val);
+                            currentSegment.marker.color.push(color);
+                        }
+
+                        if (currentSegment.x.length > 0) {
+                            segments.push(currentSegment);
+                        }
+
+                        Plotly.newPlot(`graph${i}`, segments, {
+                            title: key.toUpperCase(),
+                            margin: { t: 40 }
+                        });
+                    });
+                },
+                complete: function () {
+                    if (initialLoad) {
+                        $('#spinner').hide();
+                        initialLoad = false;
+                    }
+                }
+            });
+        }
+    </script>
+
+
+</body>
+
+</html>

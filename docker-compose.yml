@@ -1,0 +1,11 @@
+version: '3.12.7'
+
+services:
+  cris_app:
+    build: .
+    container_name: cris_monitoring
+    ports:
+      - "7500:7500"
+    volumes:
+      - ./data:/app/data   
+    restart: unless-stopped
