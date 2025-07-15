@@ -292,6 +292,7 @@
         <div class="spinner-content">⏳ Loading Graphs...</div>
     </div>
 
+    <!-- EXPORT & GRAPH SCRIPT -->
     <script>
         let currentWindow = 0;
         let selectedLocation = '';
@@ -299,6 +300,29 @@
         let isPaused = false;
         let graphInterval;
         let initialLoad = true;
+
+        // Append Export Button on Page Load
+        $(document).ready(function () {
+            const exportBtn = `
+        <div style="position: absolute; top: 20px; right: 40px;">
+            <button id="exportGraphs" style="
+                padding: 10px 20px;
+                // padding-left: 30px;
+                justify-content: center;
+                background-color: #1a237e;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: bold;
+            ">📤 Export All Graphs</button>
+        </div>`;
+            $("body").append(exportBtn);
+
+            $('#exportGraphs').click(function () {
+                exportAllGraphs();
+            });
+        });
 
         $('#location').change(function () {
             selectedLocation = $(this).val();
@@ -315,15 +339,14 @@
                     success: function (data) {
                         if (data.assets && data.assets.length > 0) {
                             $('#asset').prop('disabled', false);
-                            $('#assetCount').text(data.assets.length);  // ✅ Count Update
+                            $('#assetCount').text(`Assets: ${data.assets.length}`);
                             data.assets.forEach(asset => {
                                 $('#asset').append(`<option value="${asset}">${asset}</option>`);
                             });
                         } else {
-                            $('#assetCount').text('0');  // ✅ Handle empty case
+                            $('#assetCount').text(`Assets: 0`);
                         }
                     }
-
                 });
             }
         });
@@ -354,38 +377,6 @@
             }, 1500);
         }
 
-        function fetchAssets() {
-            const location = document.getElementById("location").value;
-            const assetDropdown = document.getElementById("asset");
-            const assetCount = document.getElementById("assetCount");
-
-            if (!location) {
-                assetDropdown.disabled = true;
-                assetDropdown.innerHTML = '<option value="">Select Asset Code</option>';
-                assetCount.textContent = "0";
-                return;
-            }
-
-            fetch("/get_assets", {
-                method: "POST",
-                contentType: 'application/json',
-                data: JSON.stringify({ location: selectedLocation }),
-            })
-                .then((res) => res.json())
-                .then((data) => {
-                    assetDropdown.disabled = false;
-                    assetDropdown.innerHTML = '<option value="">Select Asset Code</option>';
-                    data.assets.forEach((asset) => {
-                        const option = document.createElement("option");
-                        option.value = asset;
-                        option.textContent = asset;
-                        assetDropdown.appendChild(option);
-                    });
-                    assetCount.textContent = data.assets.length;
-                });
-        }
-
-
         function fetchAndDrawGraphs() {
             if (initialLoad) {
                 $('#spinner').css('display', 'flex');
@@ -403,62 +394,68 @@
                 success: function (data) {
                     if (data.status === 'nodata') {
                         console.warn(data.message);
-                        currentWindow = (currentWindow + 1);
                         return;
                     }
+
+                    currentWindow = data.window_index;
 
                     const x = data.time;
                     const keys = ['vrg', 'vhg', 'vdg', 'vhhg', 'irg', 'ihg', 'idg', 'ihhg'];
                     const thresholds = data.thresholds || {};
-                    currentWindow = data.window_index;
+                    const max_values = data.max_values || {};
 
                     keys.forEach((key, i) => {
                         const y = data[key];
                         const segments = [];
                         const threshold = thresholds[key];
+                        const yMax = max_values[key] || Math.max(...y) + 20000;
+
                         let currentSegment = {
                             x: [],
                             y: [],
-                            line: { color: 'blue' },
+                            line: { color: 'blue', width: 2 },
                             mode: 'lines+markers',
-                            marker: { color: [] }
+                            marker: { color: [], size: 5 }
                         };
+
+                        let prevColor = null;
 
                         for (let j = 0; j < x.length; j++) {
                             const val = y[j];
                             const time = x[j];
-
                             if (val == null || val === '') continue;
 
                             let color = 'blue';
                             if (threshold !== null && !isNaN(threshold)) {
                                 const deviation = ((val - threshold) / threshold) * 100;
-                                if (Math.abs(deviation) > 3 && Math.abs(deviation) <= 20) {
+                                if (Math.abs(deviation) > 2 && Math.abs(deviation) <= 20) {
                                     color = 'yellow';
                                 } else if (Math.abs(deviation) > 20) {
                                     color = 'red';
                                 }
                             }
 
-                            if (
-                                j > 0 &&
-                                (Math.abs(y[j] - y[j - 1]) > 0.1 ||
-                                    new Date(x[j]) - new Date(x[j - 1]) !== 0)
-                            ) {
+                            // Break segment if color changes
+                            if (prevColor !== null && color !== prevColor) {
                                 segments.push(currentSegment);
                                 currentSegment = {
                                     x: [],
                                     y: [],
-                                    name: `${key.toUpperCase()} - Segment ${segments.length + 1}`,
-                                    line: { color: color },
+                                    line: { color: color, width: 2 },
                                     mode: 'lines+markers',
-                                    marker: { color: [] }
+                                    marker: { color: [], size: 5 }
                                 };
+                            }
+
+                            if (currentSegment.x.length === 0) {
+                                currentSegment.line.color = color;
                             }
 
                             currentSegment.x.push(time);
                             currentSegment.y.push(val);
                             currentSegment.marker.color.push(color);
+
+                            prevColor = color;
                         }
 
                         if (currentSegment.x.length > 0) {
@@ -467,7 +464,8 @@
 
                         Plotly.newPlot(`graph${i}`, segments, {
                             title: key.toUpperCase(),
-                            margin: { t: 40 }
+                            margin: { t: 40 },
+                            yaxis: { range: [0, yMax] }
                         });
                     });
                 },
@@ -478,6 +476,19 @@
                     }
                 }
             });
+        }
+
+        function exportAllGraphs() {
+            for (let i = 0; i < 8; i++) {
+                const graphDiv = document.getElementById(`graph${i}`);
+                Plotly.downloadImage(graphDiv, {
+                    format: 'png',
+                    filename: `graph_${i + 1}`,
+                    width: 900,
+                    height: 500
+                });
+            }
+            alert('All 8 graphs exported as PNG!');
         }
     </script>
 
