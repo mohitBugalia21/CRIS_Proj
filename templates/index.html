@@ -51,6 +51,12 @@
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
         }
 
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
         .info-group {
             display: flex;
             flex-direction: column;
@@ -62,7 +68,6 @@
             margin-bottom: 5px;
             color: #333;
         }
-
 
         .filter-group label {
             font-weight: 600;
@@ -99,6 +104,29 @@
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
         }
 
+        .status-box {
+            display: none;
+            padding: 15px;
+            border: 2px solid #4caf50;
+            border-radius: 10px;
+            margin-top: 15px;
+            margin-bottom: 25px;
+            background-color: #e8f5e8;
+            text-align: center;
+        }
+
+        .status-box.error {
+            border-color: #f44336;
+            background-color: #ffebee;
+            color: #d32f2f;
+        }
+
+        .status-box.success {
+            border-color: #4caf50;
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+
         label {
             font-weight: 600;
             margin-right: 10px;
@@ -122,12 +150,14 @@
             transform: scale(1.03);
         }
 
-        .pause-button-container {
-            text-align: center;
+        .controls-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
             margin-top: 20px;
         }
 
-        #togglePause {
+        .control-button {
             padding: 10px 20px;
             font-size: 16px;
             background-color: #1a237e;
@@ -138,7 +168,30 @@
             transition: background-color 0.3s ease;
         }
 
-        #togglePause:hover {
+        .control-button:hover {
+            background-color: #3949ab;
+        }
+
+        .control-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .export-button {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            padding: 10px 20px;
+            background-color: #1a237e;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .export-button:hover {
             background-color: #3949ab;
         }
 
@@ -190,7 +243,6 @@
             border-top-color: #1a237e;
         }
 
-        /* Spinner styles – only for initial load */
         #spinner {
             display: none;
             position: fixed;
@@ -221,6 +273,16 @@
                 align-items: flex-start;
             }
 
+            .controls-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .export-button {
+                position: static;
+                margin-bottom: 20px;
+            }
+
             select {
                 width: 100%;
             }
@@ -229,20 +291,18 @@
 </head>
 
 <body>
+    <button id="exportGraphs" class="export-button">📤 Export All Graphs</button>
 
     <div class="header-box">
         <h2>CRIS Signal Monitoring</h2>
     </div>
 
-    <!-- ✅ ROW 1: Location & Asset Code Dropdowns -->
     <div class="filter-box">
         <div class="filter-group">
             <label for="location">Location:</label>
             <select id="location">
                 <option value="">Select Location</option>
-                {% for location in locations %}
-                <option value="{{ location }}">{{ location }}</option>
-                {% endfor %}
+                <!-- Will be populated dynamically -->
             </select>
         </div>
 
@@ -254,45 +314,75 @@
         </div>
     </div>
 
-    <!-- ✅ ROW 2: Info Blocks in their own line -->
     <div class="info-box">
         <div class="info-group">
             <label>Available Locations</label>
-            <div class="info-display" id="locationCount">{{ locations|length }}</div>
+            <div class="info-display" id="locationCount">Loading...</div>
         </div>
 
         <div class="info-group">
             <label>Available Asset Codes</label>
             <div class="info-display" id="assetCount">0</div>
         </div>
+
+        <div class="info-group">
+            <label>Current Window</label>
+            <div class="info-display" id="currentWindow">-</div>
+        </div>
+
+        <div class="info-group">
+            <label>Time Range</label>
+            <div class="info-display" id="timeRange">-</div>
+        </div>
     </div>
 
+    <div class="status-box" id="statusBox">
+        <span id="statusMessage"></span>
+    </div>
 
-    <div class="pause-button-container">
-        <button id="togglePause">⏸️ Pause Graph</button>
+    <div class="controls-container">
+        <button id="togglePause" class="control-button">⏸️ Pause Graph</button>
+        <button id="resetWindow" class="control-button">🔄 Reset Window</button>
     </div>
 
     <div class="graph-container" id="graphContainer">
         <div class="default-message" id="defaultMessage">
             📊 No Data Found Yet! Ensure To Select Location & Asset Code First...
         </div>
-        {% for i in range(8) %}
-        <div class="graph-box" id="graphBox{{ i }}" style="display: none;">
-            <div id="graph{{ i }}"></div>
+        <div class="graph-box" id="graphBox0" style="display: none;">
+            <div id="graph0"></div>
         </div>
-        {% endfor %}
+        <div class="graph-box" id="graphBox1" style="display: none;">
+            <div id="graph1"></div>
+        </div>
+        <div class="graph-box" id="graphBox2" style="display: none;">
+            <div id="graph2"></div>
+        </div>
+        <div class="graph-box" id="graphBox3" style="display: none;">
+            <div id="graph3"></div>
+        </div>
+        <div class="graph-box" id="graphBox4" style="display: none;">
+            <div id="graph4"></div>
+        </div>
+        <div class="graph-box" id="graphBox5" style="display: none;">
+            <div id="graph5"></div>
+        </div>
+        <div class="graph-box" id="graphBox6" style="display: none;">
+            <div id="graph6"></div>
+        </div>
+        <div class="graph-box" id="graphBox7" style="display: none;">
+            <div id="graph7"></div>
+        </div>
     </div>
 
     <footer>
         CRIS | Developed By: Mohit Bugalia
     </footer>
 
-    <!-- Spinner for initial graph load -->
     <div id="spinner">
         <div class="spinner-content">⏳ Loading Graphs...</div>
     </div>
 
-    <!-- EXPORT & GRAPH SCRIPT -->
     <script>
         let currentWindow = 0;
         let selectedLocation = '';
@@ -301,34 +391,75 @@
         let graphInterval;
         let initialLoad = true;
 
-        // Append Export Button on Page Load
+        function showStatus(message, type = 'error') {
+            const statusBox = $('#statusBox');
+            const statusMessage = $('#statusMessage');
+
+            statusBox.removeClass('error success');
+            statusBox.addClass(type);
+            statusMessage.text(message);
+            statusBox.show();
+
+            setTimeout(() => {
+                statusBox.hide();
+            }, 5000);
+        }
+
+        function updateInfoDisplay(data) {
+            if (data.current_window) {
+                $('#currentWindow').text(data.current_window);
+            }
+            if (data.time_range) {
+                $('#timeRange').text(data.time_range);
+            }
+        }
+
+        // Load locations on page load
         $(document).ready(function () {
-            const exportBtn = `
-        <div style="position: absolute; top: 20px; right: 40px;">
-            <button id="exportGraphs" style="
-                padding: 10px 20px;
-                // padding-left: 30px;
-                justify-content: center;
-                background-color: #1a237e;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: bold;
-            ">📤 Export All Graphs</button>
-        </div>`;
-            $("body").append(exportBtn);
+            loadLocations();
 
             $('#exportGraphs').click(function () {
                 exportAllGraphs();
             });
         });
 
+        function loadLocations() {
+            $.ajax({
+                url: '/get_locations',
+                method: 'GET',
+                success: function (data) {
+                    if (data.locations && data.locations.length > 0) {
+                        $('#location').empty().append('<option value="">Select Location</option>');
+                        data.locations.forEach(location => {
+                            $('#location').append(`<option value="${location}">${location}</option>`);
+                        });
+                        $('#locationCount').text(data.locations.length);
+                    } else {
+                        $('#locationCount').text('0');
+                        showStatus('No locations found in database', 'error');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error loading locations:', error);
+                    $('#locationCount').text('0');
+                    showStatus('Failed to load locations', 'error');
+                }
+            });
+        }
+
         $('#location').change(function () {
             selectedLocation = $(this).val();
             $('#asset').prop('disabled', true).html('<option value="">Select Asset</option>');
             $('#defaultMessage').show();
             $('.graph-box').hide();
+            $('#assetCount').text('0');
+            $('#currentWindow').text('-');
+            $('#timeRange').text('-');
+
+            // Clear any existing interval
+            if (graphInterval) {
+                clearInterval(graphInterval);
+            }
 
             if (selectedLocation) {
                 $.ajax({
@@ -339,13 +470,20 @@
                     success: function (data) {
                         if (data.assets && data.assets.length > 0) {
                             $('#asset').prop('disabled', false);
-                            $('#assetCount').text(`Assets: ${data.assets.length}`);
+                            $('#assetCount').text(data.assets.length);
                             data.assets.forEach(asset => {
                                 $('#asset').append(`<option value="${asset}">${asset}</option>`);
                             });
+                            showStatus(`Found ${data.assets.length} assets for ${selectedLocation}`, 'success');
                         } else {
-                            $('#assetCount').text(`Assets: 0`);
+                            $('#assetCount').text('0');
+                            showStatus('No assets found for selected location', 'error');
                         }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error fetching assets:', error);
+                        $('#assetCount').text('0');
+                        showStatus('Failed to load assets', 'error');
                     }
                 });
             }
@@ -353,18 +491,50 @@
 
         $('#asset').change(function () {
             selectedAsset = $(this).val();
+
+            // Clear any existing interval
+            if (graphInterval) {
+                clearInterval(graphInterval);
+            }
+
             if (selectedLocation && selectedAsset) {
                 $('#defaultMessage').hide();
                 $('.graph-box').show();
                 currentWindow = 0;
                 initialLoad = true;
+
+                // Clear existing graphs
+                for (let i = 0; i < 8; i++) {
+                    const graphElement = document.getElementById(`graph${i}`);
+                    if (graphElement && graphElement.data) {
+                        Plotly.purge(`graph${i}`);
+                    }
+                }
+
+                showStatus(`Loading data for ${selectedAsset} at ${selectedLocation}`, 'success');
                 startGraphLoop();
+            } else {
+                $('#defaultMessage').show();
+                $('.graph-box').hide();
             }
         });
 
         $('#togglePause').click(function () {
             isPaused = !isPaused;
             $(this).text(isPaused ? '▶️ Resume Graph' : '⏸️ Pause Graph');
+            if (isPaused) {
+                showStatus('Graph updates paused', 'success');
+            } else {
+                showStatus('Graph updates resumed', 'success');
+            }
+        });
+
+        $('#resetWindow').click(function () {
+            currentWindow = 0;
+            if (selectedLocation && selectedAsset) {
+                showStatus('Window reset to beginning', 'success');
+                fetchAndDrawGraphs();
+            }
         });
 
         function startGraphLoop() {
@@ -392,82 +562,157 @@
                     window_index: currentWindow
                 }),
                 success: function (data) {
+                    console.log('Response data:', data);
+
                     if (data.status === 'nodata') {
-                        console.warn(data.message);
+                        console.warn(data.message || 'No data found');
+                        showStatus(data.message || 'No data found for current window', 'error');
+
+                        // Auto-increment window if provided
+                        if (data.window_index !== undefined) {
+                            currentWindow = data.window_index;
+                        } else {
+                            currentWindow++;
+                        }
                         return;
                     }
 
-                    currentWindow = data.window_index;
+                    if (data.status === 'error') {
+                        console.error('Server error:', data.message);
+                        showStatus(data.message || 'Server error occurred', 'error');
+                        return;
+                    }
 
-                    const x = data.time;
+                    // Update current window
+                    if (data.window_index !== undefined) {
+                        currentWindow = data.window_index;
+                    }
+
+                    // Update info display
+                    updateInfoDisplay(data);
+
+                    const x = data.time || [];
                     const keys = ['vrg', 'vhg', 'vdg', 'vhhg', 'irg', 'ihg', 'idg', 'ihhg'];
                     const thresholds = data.thresholds || {};
                     const max_values = data.max_values || {};
 
+                    let totalDataPoints = 0;
+
                     keys.forEach((key, i) => {
-                        const y = data[key];
-                        const segments = [];
+                        const y = data[key] || [];
                         const threshold = thresholds[key];
-                        const yMax = max_values[key] || Math.max(...y) + 20000;
+                        const yMax = max_values[key] || 100000;
 
-                        let currentSegment = {
-                            x: [],
-                            y: [],
-                            line: { color: 'blue', width: 2 },
-                            mode: 'lines+markers',
-                            marker: { color: [], size: 5 }
-                        };
-
-                        let prevColor = null;
-
-                        for (let j = 0; j < x.length; j++) {
+                        // Filter out null/empty values and create parallel arrays
+                        const filteredData = [];
+                        for (let j = 0; j < Math.min(x.length, y.length); j++) {
                             const val = y[j];
                             const time = x[j];
-                            if (val == null || val === '') continue;
+                            if (val !== null && val !== undefined && val !== '' && !isNaN(val)) {
+                                filteredData.push({ time, val });
+                            }
+                        }
 
+                        totalDataPoints += filteredData.length;
+
+                        if (filteredData.length === 0) {
+                            // Show empty graph
+                            Plotly.newPlot(`graph${i}`, [], {
+                                title: {
+                                    text: key.toUpperCase() + ' (No Data)',
+                                    font: { size: 16 }
+                                },
+                                margin: { t: 40, l: 60, r: 30, b: 40 },
+                                yaxis: {
+                                    range: [0, yMax],
+                                    title: 'Value'
+                                },
+                                xaxis: {
+                                    title: 'Time',
+                                    type: 'date'
+                                },
+                                showlegend: false,
+                                paper_bgcolor: '#f9f9f9',
+                                plot_bgcolor: '#ffffff'
+                            });
+                            return;
+                        }
+
+                        // Create traces for different colors
+                        const traces = [];
+                        let currentTrace = null;
+
+                        filteredData.forEach(({ time, val }) => {
                             let color = 'blue';
-                            if (threshold !== null && !isNaN(threshold)) {
-                                const deviation = ((val - threshold) / threshold) * 100;
-                                if (Math.abs(deviation) > 2 && Math.abs(deviation) <= 20) {
-                                    color = 'yellow';
-                                } else if (Math.abs(deviation) > 20) {
+
+                            // Calculate color based on threshold
+                            if (threshold !== null && threshold !== undefined && !isNaN(threshold) && threshold > 0) {
+                                const deviation = Math.abs(((val - threshold) / threshold) * 100);
+                                if (deviation > 2 && deviation <= 20) {
+                                    color = 'orange';
+                                } else if (deviation > 20) {
                                     color = 'red';
                                 }
                             }
 
-                            // Break segment if color changes
-                            if (prevColor !== null && color !== prevColor) {
-                                segments.push(currentSegment);
-                                currentSegment = {
-                                    x: [],
-                                    y: [],
-                                    line: { color: color, width: 2 },
+                            // Start new trace if color changes or first point
+                            if (!currentTrace || currentTrace.line.color !== color) {
+                                if (currentTrace) {
+                                    traces.push(currentTrace);
+                                }
+                                currentTrace = {
+                                    x: [time],
+                                    y: [val],
+                                    type: 'scatter',
                                     mode: 'lines+markers',
-                                    marker: { color: [], size: 5 }
+                                    line: { color: color, width: 2 },
+                                    marker: { color: color, size: 4 },
+                                    showlegend: false,
+                                    name: key.toUpperCase()
                                 };
+                            } else {
+                                currentTrace.x.push(time);
+                                currentTrace.y.push(val);
                             }
+                        });
 
-                            if (currentSegment.x.length === 0) {
-                                currentSegment.line.color = color;
-                            }
-
-                            currentSegment.x.push(time);
-                            currentSegment.y.push(val);
-                            currentSegment.marker.color.push(color);
-
-                            prevColor = color;
+                        // Add the last trace
+                        if (currentTrace) {
+                            traces.push(currentTrace);
                         }
 
-                        if (currentSegment.x.length > 0) {
-                            segments.push(currentSegment);
-                        }
-
-                        Plotly.newPlot(`graph${i}`, segments, {
-                            title: key.toUpperCase(),
-                            margin: { t: 40 },
-                            yaxis: { range: [0, yMax] }
+                        // Plot the graph
+                        Plotly.newPlot(`graph${i}`, traces, {
+                            title: {
+                                text: `${key.toUpperCase()} (${filteredData.length} points)`,
+                                font: { size: 16 }
+                            },
+                            margin: { t: 40, l: 60, r: 30, b: 40 },
+                            yaxis: {
+                                range: [0, yMax],
+                                title: 'Value'
+                            },
+                            xaxis: {
+                                title: 'Time',
+                                type: 'date'
+                            },
+                            showlegend: false,
+                            paper_bgcolor: '#f9f9f9',
+                            plot_bgcolor: '#ffffff'
                         });
                     });
+
+                    if (totalDataPoints > 0) {
+                        showStatus(`Successfully loaded ${totalDataPoints} data points`, 'success');
+                    } else {
+                        showStatus('No valid data points found', 'error');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Ajax error:', error);
+                    console.error('Status:', status);
+                    console.error('Response:', xhr.responseText);
+                    showStatus(`Request failed: ${error}`, 'error');
                 },
                 complete: function () {
                     if (initialLoad) {
@@ -479,20 +724,45 @@
         }
 
         function exportAllGraphs() {
-            for (let i = 0; i < 8; i++) {
-                const graphDiv = document.getElementById(`graph${i}`);
-                Plotly.downloadImage(graphDiv, {
-                    format: 'png',
-                    filename: `graph_${i + 1}`,
-                    width: 900,
-                    height: 500
-                });
+            if (!selectedLocation || !selectedAsset) {
+                showStatus('Please select location and asset first', 'error');
+                return;
             }
-            alert('All 8 graphs exported as PNG!');
+
+            let exportCount = 0;
+            let successCount = 0;
+            const totalGraphs = 8;
+
+            for (let i = 0; i < totalGraphs; i++) {
+                const graphDiv = document.getElementById(`graph${i}`);
+                if (graphDiv && graphDiv.data && graphDiv.data.length > 0) {
+                    Plotly.downloadImage(graphDiv, {
+                        format: 'png',
+                        filename: `graph_${['vrg', 'vhg', 'vdg', 'vhhg', 'irg', 'ihg', 'idg', 'ihhg'][i]}_${selectedAsset}`,
+                        width: 900,
+                        height: 500
+                    }).then(() => {
+                        exportCount++;
+                        successCount++;
+                        if (exportCount === totalGraphs) {
+                            showStatus(`Successfully exported ${successCount} graphs`, 'success');
+                        }
+                    }).catch(err => {
+                        console.error(`Error exporting graph ${i}:`, err);
+                        exportCount++;
+                        if (exportCount === totalGraphs) {
+                            showStatus(`Export completed: ${successCount} successful, ${totalGraphs - successCount} failed`, 'error');
+                        }
+                    });
+                } else {
+                    exportCount++;
+                    if (exportCount === totalGraphs) {
+                        showStatus(`Export completed: ${successCount} successful, ${totalGraphs - successCount} empty`, 'success');
+                    }
+                }
+            }
         }
     </script>
-
-
 </body>
 
 </html>
